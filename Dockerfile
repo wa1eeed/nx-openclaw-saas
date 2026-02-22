@@ -1,29 +1,43 @@
-# Use an official Node.js image as the base image
-FROM node:22-alpine as base
+# Use a Node.js image with the desired version
+FROM node:22.12.0-alpine as builder
 
-# Set the working directory in the container
+# Set working directory
 WORKDIR /app
 
-# Install pnpm for faster and more reliable dependency management
-RUN npm install -g pnpm
+# Copy package.json and package-lock.json
+COPY package.json package-lock.json ./
 
-# Copy package.json and pnpm-lock.yaml to install dependencies
-COPY package.json pnpm-lock.yaml ./
+# Install dependencies
+RUN npm ci
 
-# Install dependencies using pnpm
-RUN pnpm install --frozen-lockfile
-
-# Copy the rest of the application code
-COPY . .
+# Copy Prisma schema and .env for database operations during build
+COPY prisma ./prisma
+COPY .env ./.env
 
 # Generate Prisma client and push schema to the database
-RUN npx prisma generate && npx prisma db push --accept-data-loss
+# Ensure DATABASE_URL is available for this step as a build argument
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL}
+RUN npx prisma generate
+RUN npx prisma db push --accept-data-loss
 
 # Build the Next.js application
-RUN pnpm run build
+COPY . .
+RUN npm run build
 
-# Start the Next.js application in production mode
-CMD ["pnpm", "start"]
+# Production stage (smaller image for deployment)
+FROM node:22.12.0-alpine as runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Copy built application and essential files from builder stage
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 
 # Expose the port Next.js runs on
 EXPOSE 3003
+
+# Start the Next.js application
+CMD ["npm", "start"]
