@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #1e293b;
+  --accent: #00ff9d;
+}
+
+[data-theme='dark'] {
+  --background: #0a0f1e;
+  --foreground: #ffffff;
+  --card: #111a2e;
+  --card-foreground: #cbd5e1;
+  --accent: #00ff9d;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans);
+}
